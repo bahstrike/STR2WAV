@@ -7,6 +7,22 @@ namespace PlayString
 {
     class STR2WAV
     {
+        public static byte[] GeneratePCMBuffer(string snd)
+        {
+            STR2WAV s = new STR2WAV(snd);
+            return s.generateFinalDataBuffer();
+        }
+
+        public static void GenerateWAVFile(string snd, string outpath)
+        {
+            STR2WAV s = new STR2WAV(snd);
+
+            FileStream f = new FileStream(outpath, FileMode.Create);
+            generateWAV(s.generateFinalDataBuffer(), f);
+            f.Close();
+        }
+        
+
         private List<byte[]> data = new List<byte[]>();
         private static double[] FREQ = new double[] {
             // C, C#, D, D#, E,F, F#, G, G#, A, A#, H
@@ -26,10 +42,7 @@ namespace PlayString
         int octave = 4;
         NoteDurations NoteDuration = NoteDurations.Normal;
         int tempo = 120;
-        bool MusicBackground = false;
-        enum NoteDurationType { Normal, Legato, Staccato }
 
-        List<Command> commands = new List<Command>();
         /*
 Ln     Sets the duration (length) of the notes. The variable n does not indicate an actual duration
        amount but rather a note type; L1 - whole note, L2 - half note, L4 - quarter note, etc.
@@ -54,15 +67,17 @@ MB MF  Stand for Music Background and Music Foreground. MB places a maximum of 3
        and plays them while executing other statements. Works very well for games.
        MF switches the PLAY mode back to normal. Default is MF.
          */
-        public STR2WAV(string snd)
+        protected STR2WAV(string snd)
         {
             snd = snd.ToUpper();
-            int i = 0;
-            while (i < snd.Length)
+            for(int i=0; i<snd.Length; i++)
             {
                 char c = snd[i];
                 switch (c)
                 {
+                    case ' ':
+                        continue;
+
                     case 'L':
                         {
                             i++;
@@ -72,8 +87,7 @@ MB MF  Stand for Music Background and Music Foreground. MB places a maximum of 3
                                 val += snd[i];
                                 i++;
                             }
-                            int duration = int.Parse(val);
-                            commands.Add(new PlayNoteLength(duration));
+                            notelength = int.Parse(val);
                             i--;
                         }
                         break;
@@ -86,8 +100,7 @@ MB MF  Stand for Music Background and Music Foreground. MB places a maximum of 3
                                 val += snd[i];
                                 i++;
                             }
-                            int duration = int.Parse(val);
-                            commands.Add(new PlayTempo(duration));
+                            tempo = int.Parse(val);
                             i--;
                         }
                         break;
@@ -97,19 +110,19 @@ MB MF  Stand for Music Background and Music Foreground. MB places a maximum of 3
                             switch (snd[i])
                             {
                                 case 'L':
-                                    commands.Add(new PlayLegato());
+                                    NoteDuration = NoteDurations.Legato;
                                     break;
                                 case 'N':
-                                    commands.Add(new PlayNormal());
+                                    NoteDuration = NoteDurations.Normal;
                                     break;
                                 case 'S':
-                                    commands.Add(new PlayStaccato());
+                                    NoteDuration = NoteDurations.Staccato;
                                     break;
                                 case 'B':
-                                    commands.Add(new PlayMusicBackground());
+                                    // nothing
                                     break;
                                 case 'F':
-                                    commands.Add(new PlayMusicForeground());
+                                    // nothing
                                     break;
                                 default:
                                     throw new Exception("Invalid duration " + snd[i] + "!");
@@ -128,7 +141,7 @@ MB MF  Stand for Music Background and Music Foreground. MB places a maximum of 3
                             bool sharp = false;
                             bool dotted = false;
                             bool doubledotted = false;
-                            PlayNote n = new PlayNote();
+                            PlayNoteInfo n = new PlayNoteInfo();
                             i++;
                             if (i < snd.Length && snd[i] == '+') { sharp = true; i++; }
                             if (i < snd.Length && snd[i] == '-') { flat = true; i++; }
@@ -169,7 +182,7 @@ MB MF  Stand for Music Background and Music Foreground. MB places a maximum of 3
                             n.Sharp = sharp;
                             n.Dotted = dotted;
                             n.DoubleDotted = doubledotted;
-                            commands.Add(n);
+                            playnote(n);
                             i--;
 
                         }
@@ -183,10 +196,15 @@ MB MF  Stand for Music Background and Music Foreground. MB places a maximum of 3
                                 val += snd[i];
                                 i++;
                             }
-                            int octave = int.Parse(val);
-                            commands.Add(new PlayOctave(octave));
+                            octave = int.Parse(val);
                             i--;
                         }
+                        break;
+                    case '>':
+                        octave++;
+                        break;
+                    case '<':
+                        octave--;
                         break;
                     case 'P':
                         {
@@ -198,90 +216,99 @@ MB MF  Stand for Music Background and Music Foreground. MB places a maximum of 3
                                 i++;
                             }
                             int pause = int.Parse(val);
-                            commands.Add(new PlayPause(pause));
+
+                            double totalseconds = (1.0 / (tempo / 60.0)) * (4.0 / pause);
+                            Tone(0, totalseconds);
+
                             i--;
                         }
                         break;
                     default:
                         throw new Exception("Command " + c + " not implemented!");
                 }
-                i++;
-
             }
         }
 
-        public void generate()
+        class PlayNoteInfo
         {
-            foreach (Command c in commands)
+            public char Note;
+            public int Length;
+            public bool Dotted;
+            public bool DoubleDotted;
+            public bool Sharp;
+            public bool Flat;
+
+            public PlayNoteInfo(char note)
             {
-                if (c as PlayTempo != null)
-                {
-                    tempo = ((PlayTempo)c).Tempo;
-                }
-                else if (c as PlayNoteLength != null)
-                {
-                    notelength = ((PlayNoteLength)c).Length;
-                }
-                else if (c as PlayMusicBackground != null)
-                {
-                    MusicBackground = true;
-                }
-                else if (c as PlayMusicForeground != null)
-                {
-                    MusicBackground = false;
-                }
-                else if (c as PlayNormal != null)
-                    NoteDuration = NoteDurations.Normal;
-                else if (c as PlayLegato != null)
-                    NoteDuration = NoteDurations.Legato;
-                else if (c as PlayStaccato != null)
-                    NoteDuration = NoteDurations.Staccato;
-                else if (c as PlayNote != null)
-                {
-                    PlayNote n = c as PlayNote;
-                    int noteno = n.getNumber();
-                    double herz = FREQ[(12 * (octave + 2)) + noteno];
-                    int thisnotelength = notelength;
-                    if (n.Length > 0)
-                        thisnotelength = n.Length;
-                    double totalseconds = (1.0 / (tempo / 60.0)) * (4.0 / thisnotelength);
-                    double noteseconds = totalseconds;
-                    double pause = 0.0;
-                    if (NoteDuration == NoteDurations.Normal)
-                    {
-                        noteseconds = noteseconds * (7.0 / 8.0);
-                        pause = totalseconds - noteseconds;
-                    }
-                    else if (NoteDuration == NoteDurations.Staccato)
-                    {
-                        noteseconds = noteseconds * (3.0 / 4.0);
-                        pause = totalseconds - noteseconds;
-                    }
-                    if (n.DoubleDotted)
-                        noteseconds += (noteseconds / 2.0) + (noteseconds / 4.0);
-                    else if (n.Dotted)
-                        noteseconds += (noteseconds / 2.0);
-                    Tone(herz, noteseconds);
-                    if (pause > 0.0)
-                        Tone(0, pause);
-                }
-                else if (c as PlayPause != null)
-                {
-                    PlayPause pp = c as PlayPause;
-                    double totalseconds = (1.0 / (tempo / 60.0)) * (4.0 / pp.Pause);
-                    Tone(0, totalseconds);
-                }
-                else if (c as PlayOctave != null)
-                    octave = ((PlayOctave)c).Octave;
-                else
-                {
-                    throw new Exception("Not implemented " + c.GetType().ToString());
-                }
+                Note = note;
+                Length = -1; // Note length is set by the Ln command 
             }
+            public PlayNoteInfo(char note, int length)
+            {
+                Note = note;
+                Length = length;
+            }
+
+            public PlayNoteInfo()
+            {
+
+            }
+
+            public int getNumber()
+            {
+
+                // C, C#, D, D#, E,F, F#, G, G#, A, A#, H
+                int number = 0;
+                switch (Note)
+                {
+                    case 'C': number = 0; break;
+                    case 'D': number = 2; break;
+                    case 'E': number = 4; break;
+                    case 'F': number = 5; break;
+                    case 'G': number = 7; break;
+                    case 'A': number = 9; break;
+                    case 'B': number = 11; break;
+                }
+                if (Sharp)
+                    number++;
+                if (Flat)
+                    number--;
+                return number;
+            }
+
+        }
+
+        private void playnote(PlayNoteInfo n)
+        {
+            int noteno = n.getNumber();
+            double herz = FREQ[(12 * (octave + 2)) + noteno];
+            int thisnotelength = notelength;
+            if (n.Length > 0)
+                thisnotelength = n.Length;
+            double totalseconds = (1.0 / (tempo / 60.0)) * (4.0 / thisnotelength);
+            double noteseconds = totalseconds;
+            double pause = 0.0;
+            if (NoteDuration == NoteDurations.Normal)
+            {
+                noteseconds = noteseconds * (7.0 / 8.0);
+                pause = totalseconds - noteseconds;
+            }
+            else if (NoteDuration == NoteDurations.Staccato)
+            {
+                noteseconds = noteseconds * (3.0 / 4.0);
+                pause = totalseconds - noteseconds;
+            }
+            if (n.DoubleDotted)
+                noteseconds += (noteseconds / 2.0) + (noteseconds / 4.0);
+            else if (n.Dotted)
+                noteseconds += (noteseconds / 2.0);
+            Tone(herz, noteseconds);
+            if (pause > 0.0)
+                Tone(0, pause);
         }
 
 
-        public void Tone(double hz, double seconds)
+        protected void Tone(double hz, double seconds)
         {
             double sampleRate = 44100;
             int duration = (int)(sampleRate * seconds);
@@ -301,17 +328,27 @@ MB MF  Stand for Music Background and Music Foreground. MB places a maximum of 3
             data.Add(d);
         }
 
-        private UInt32 getTotalLength()
+        protected byte[] generateFinalDataBuffer()
         {
-            UInt32 length = 0;
+            int totalbytes = 0;
             foreach (byte[] d in data)
-                length += (UInt32)d.Length;
-            return length;
+                totalbytes += d.Length;
+
+            byte[] ret = new byte[totalbytes];
+
+            int pos = 0;
+            foreach (byte[] d in data)
+            {
+                Array.Copy(d, 0, ret, pos, d.Length);
+                pos += d.Length;
+            }
+
+            return ret;
         }
 
-        public void saveWAV(string outfile)
+        static protected void generateWAV(byte[] pcm, Stream f)
         {
-            UInt32 SubChunk2Size = getTotalLength();
+            UInt32 SubChunk2Size = (uint)pcm.Length;
             UInt16 AudioFormat = 1; // PCM
             UInt16 NumChannels = 1; // Mono
             UInt16 BitsPerSample = 8; // 8 bit
@@ -320,7 +357,6 @@ MB MF  Stand for Music Background and Music Foreground. MB places a maximum of 3
             UInt32 SubChunk1Size = 16;
             UInt32 ChunkSize = 36 + SubChunk2Size;
             UInt16 BlockAlign = (UInt16)(NumChannels * (BitsPerSample / 8));
-            FileStream f = new FileStream(outfile, FileMode.Create);
             BinaryWriter wr = new BinaryWriter(f);
 
             wr.Write(Encoding.ASCII.GetBytes("RIFF"));
@@ -335,10 +371,7 @@ MB MF  Stand for Music Background and Music Foreground. MB places a maximum of 3
             wr.Write(BlockAlign);
             wr.Write(BitsPerSample);
             wr.Write(Encoding.ASCII.GetBytes("data"));
-            foreach (byte[] d in data)
-                wr.Write(d);
-            wr.Close();
-            //System.Diagnostics.Process.Start(outfile);
+            wr.Write(pcm);
         }
     }
 }

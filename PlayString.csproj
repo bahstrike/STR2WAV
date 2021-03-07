@@ -39,20 +39,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Command.cs" />
-    <Compile Include="PlayLegato.cs" />
-    <Compile Include="PlayMusicBackground.cs" />
-    <Compile Include="PlayMusicForeground.cs" />
-    <Compile Include="PlayNormal.cs" />
-    <Compile Include="PlayNote.cs" />
-    <Compile Include="PlayNoteLength.cs" />
-    <Compile Include="PlayOctave.cs" />
-    <Compile Include="PlayPause.cs" />
-    <Compile Include="PlayStaccato.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="STR2WAV.cs" />
-    <Compile Include="PlayTempo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config">

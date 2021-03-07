@@ -12,10 +12,7 @@ namespace PlayString
                 Console.WriteLine("Example:");
                 Console.WriteLine("STR2WAV T240L8CDEFGAB test.wav");
             }
-            string outfilefile = args[1];
-            STR2WAV str2wav = new STR2WAV(args[0]);
-            str2wav.generate();
-            str2wav.saveWAV(outfilefile);
+            STR2WAV.GenerateWAVFile(args[0], args[1]);
         }
     }
 }

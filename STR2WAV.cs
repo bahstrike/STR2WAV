@@ -69,14 +69,23 @@ MB MF  Stand for Music Background and Music Foreground. MB places a maximum of 3
          */
         protected STR2WAV(string snd)
         {
+            // dude just get rid of all the spaces
+            for (int x = 0; x < snd.Length; x++)
+            {
+                int i = snd.IndexOf(' ');
+                if (i == -1)
+                    break;
+                snd = snd.Remove(i, 1);
+            }
+
             snd = snd.ToUpper();
             for(int i=0; i<snd.Length; i++)
             {
                 char c = snd[i];
                 switch (c)
                 {
-                    case ' ':
-                        continue;
+                    //case ' ':
+                        //continue;
 
                     case 'L':
                         {

@@ -2,9 +2,12 @@
 using System.Collections.Generic;
 using System.Windows.Forms;
 using System.Drawing;
+using System.IO;
+using System.Text;
+
 namespace PlayString
 {
-    class Progra
+    class Program
     {
         [STAThread]
         static void Main(string[] args)
@@ -22,7 +25,7 @@ namespace PlayString
 
             if (args.Length == 2)
             {
-                STR2WAV.GenerateWAVFile(args[0], args[1]);
+                qbplay.GenerateWAVFile(args[0], args[1]);
                 return;
             }
 
@@ -33,13 +36,19 @@ namespace PlayString
             if (InputBox("STR2WAV", "Enter PLAY string", ref snd) != DialogResult.OK)
                 return;
 
+            //yea- we gonna play it in the GUI mode hell yea
+            qbplay.PLAY(snd);
+            while (qbplay.IsPlaying)
+                System.Threading.Thread.Sleep(0);
+            qbplay.Shutdown();
+
             // get *.wav save location
             SaveFileDialog sfd = new SaveFileDialog();
             sfd.Filter = "WAV Files (*.wav)|*.wav";
             if (sfd.ShowDialog() != DialogResult.OK)
                 return;
 
-            STR2WAV.GenerateWAVFile(snd, sfd.FileName);
+            qbplay.GenerateWAVFile(snd, sfd.FileName);
         }
 
 
@@ -87,5 +96,5 @@ namespace PlayString
             value = textBox.Text;
             return dialogResult;
         }
-    }
+}
 }

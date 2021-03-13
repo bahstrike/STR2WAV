@@ -16,7 +16,7 @@ namespace PlayString
         //
         //   ideally, u call qbplay.Init()  and qbplay.Shutdown()  from ur program lifespan, so u dont leak any resources
         //
-        //   u can change the volume anytime by setting qbplay.Volume  to  0.0 - 1.0   the default is 0.35
+        //   u can change the volume anytime by setting qbplay.Volume  to  0.0 - 1.0   the default is 0.3
         //
         //   this is a state machine, so any PLAY statements that change tempo, octave, etc.  will remain.
         //   if you need to reset them, u can call qbplay.Defaults()
@@ -34,11 +34,11 @@ namespace PlayString
         //
         //--------------------------------------------------------------------------
 
-        public static double Volume = 0.35;// NOTE: this only applies to the built-in audio playback.  generating pcm samples urself via qbplay.ParseExecuteGenerate() does NOT have volume scale applied
-        public static bool Background = false;//NOTE: this only applies to the built-in audio playback.  if false, then every qbplay.PLAY() statement will wait synchronously until the playback has finished.  call qbplay.PLAY("MB");   to enable background playback
+        public static double Volume = 0.3;
 
         public static void Defaults()
         {
+            Background = false;
             notelength = 4;
             octave = 4;
             NoteDuration = NoteDurations.Normal;
@@ -128,14 +128,6 @@ namespace PlayString
             if (pcm == null || pcm.Length <= 0)
                 return;
 
-            // scale down samples to midpoint according to volume  (this could be optimized to just occur directly within Tone)
-            for (int x = 0; x < pcm.Length; x++)
-            {
-                double d = 127.0 - (double)pcm[x];
-                d *= Volume;
-                pcm[x] = (byte)(127.0 + d);
-            }
-
             PCMSampleQueue.Add(pcm);
 
             DoNextOutputBuffer();
@@ -207,6 +199,7 @@ namespace PlayString
         static int octave;
         static NoteDurations NoteDuration;
         static int tempo;
+        public static bool Background;
 
         /*
 Ln     Sets the duration (length) of the notes. The variable n does not indicate an actual duration
@@ -232,7 +225,7 @@ MB MF  Stand for Music Background and Music Foreground. MB places a maximum of 3
         and plays them while executing other statements. Works very well for games.
         MF switches the PLAY mode back to normal. Default is MF.
             */
-        public static byte[] ParseExecuteGenerate(string snd)// NOTE:  THIS DOES NOT CURRENT UTILIZE VOLUME
+        public static byte[] ParseExecuteGenerate(string snd)
         {
             List<byte[]> sampleQueue = new List<byte[]>();
 
@@ -510,15 +503,15 @@ MB MF  Stand for Music Background and Music Foreground. MB places a maximum of 3
             double sampleRate = 44100;
             int duration = (int)(sampleRate * seconds);
             byte[] d = new byte[duration];
-            double amplitude = 127;// future optimization:  just implement the volume scale here instead of doin it during buffer generation-  but computers are fast now so its aight
+            double amplitude = Math.Max(0.0, Math.Min(127.0, 127 * Volume));
             for (int n = 0; n < duration; n++)
             {
                 int value = (int)(amplitude * Math.Sin((2.0 * Math.PI * n * hz) / sampleRate));
                 if (value > 4)
-                    value = 127;
+                    value = (int)amplitude;
                 else
                 if (value < -4)
-                    value = -127;
+                    value = -(int)amplitude;
                 else value = 0;
                 d[n] = (byte)(128 - value);
             }

@@ -1,4 +1,4 @@
-# STR2WAV
+# qbplay _(STR2WAV)_
 Converts QBASIC PLAY command string to WAV
 ```                    "STR2WAVE - Convert BASIC play command string into an 8 bit 44100hz mono WAV file.\n\n"+
                     "Usage: STR2WAV [string] [file]\n\n"+
